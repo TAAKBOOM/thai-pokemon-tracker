@@ -72,12 +72,8 @@ stores:
       - https://sasom.co.th/en/shop/trading-card-box-and-pack
       - https://sasom.co.th/th/brand/pokemon
 
-  - name: Cardify (Kingdom Come)
-    url: https://www.kingdomcome.co.th
-    platform: woocommerce
-    search: pokemon
-    currency: THB
-    city: Bangkok
+  # Not included (checked Nov 2026): Cardify / Kingdom Come (no Pokémon products online),
+  # TCG Nexus (domain for sale), Nx Gallery (site down). Facebook/Instagram-only shops can't be read.
 
   # VG card shop (LnwShop) times out from GitHub's servers (likely blocks non-Thai visitors).
   # - name: VG card shop

@@ -24,6 +24,12 @@ cd site && python -m http.server 8000   # open http://localhost:8000
 python -m pytest -q              # offline tests
 ```
 
+## Shops tracked
+
+Pokesona, Kira Cards, Yannick The Gathering, Thai PKMN, Big Bear Cards (checked once a day) and SASOM (marketplace; first page of each list only, as its robots.txt asks). See `stores.yaml`.
+
+To look at a new shop's website from GitHub's servers, run **Actions → Probe shop websites → Run workflow** with its URL; results are saved to the `probe-data` branch.
+
 ## Adding a shop
 
 Add it to `stores.yaml` with `platform: auto`. The scraper detects **Shopify** and **WooCommerce** shops by itself (most Thai TCG web shops use one of the two). For anything else, use `platform: html` and fill in CSS selectors (example in the file; right-click a product on the shop → Inspect to find them). The footer of the site shows which shops updated and which failed.
