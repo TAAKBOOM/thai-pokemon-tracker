@@ -5,6 +5,8 @@ on:
       sites:
         description: "Space-separated shop URLs"
         required: true
+permissions:
+  contents: write
 jobs:
   probe:
     runs-on: ubuntu-latest
@@ -12,7 +14,8 @@ jobs:
       - uses: actions/checkout@v4
       - run: pip install requests
       - run: python tools/probe.py ${{ inputs.sites }}
-      - uses: actions/upload-artifact@v4
-        with:
-          name: probe-out
-          path: probe-out
+      - name: Save results to the probe-data branch
+        run: |
+          cd probe-out && git init -q -b probe-data && git add -A
+          git -c user.name=probe -c user.email=probe@users.noreply.github.com commit -qm "probe $(date -u +%FT%T)"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" probe-data

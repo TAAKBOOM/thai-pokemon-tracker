@@ -7,6 +7,13 @@ import requests
 UA = {"User-Agent": "Mozilla/5.0 (ThaiTCGTracker probe)"}
 OUT = Path("probe-out"); OUT.mkdir(exist_ok=True)
 SITES = sys.argv[1:]
+sys_extra = {
+    "www.vgcardshop.com": ["https://www.vgcardshop.com/category/150/%E0%B9%82%E0%B8%9B%E0%B9%80%E0%B8%81%E0%B8%A1%E0%B8%AD%E0%B8%99-pokemon-union-arena-summoner-eidolon-battle-of-talingchan-eveden-fadalgia/pokemon-%E0%B9%82%E0%B8%9B%E0%B9%80%E0%B8%81%E0%B8%A1%E0%B8%AD%E0%B8%99"],
+    "www.kira-cards.com": ["https://www.kira-cards.com/en/pokemon", "https://www.kira-cards.com/en/shop"],
+    "yannickthegathering.com": ["https://yannickthegathering.com/pokemon", "https://yannickthegathering.com/shop"],
+    "tcgnexus.com": ["https://tcgnexus.com/llms.txt"],
+    "sasom.co.th": ["https://sasom.co.th/en/shop/trading-card-box-and-pack", "https://sasom.co.th/terms", "https://sasom.co.th/th/terms-and-conditions"],
+}
 
 def get(u):
     try:
@@ -26,7 +33,21 @@ for base in SITES:
         (d / f"{name}.txt").write_text(x.text[:200000])
     links = sorted(set(urljoin(r.url, h) for h in re.findall(r'href="([^"#]+)"', r.text)))
     rep["pokemon_links"] = [l for l in links if re.search(r"pok|โปเก", l, re.I) and urlparse(l).netloc.endswith(host.replace("www.", ""))][:25]
-    for i, l in enumerate(rep["pokemon_links"][:4]):
-        x = get(l); (d / f"page{i}.html").write_text(x.text)
+    # Sitemaps: collect product/category URLs mentioning Pokémon
+    sm_urls, todo, seen = [], [urljoin(base, "/sitemap.xml")], set()
+    while todo and len(seen) < 8:
+        u = todo.pop(0)
+        if u in seen: continue
+        seen.add(u); x = get(u)
+        locs = re.findall(r"<loc>\s*([^<\s]+)\s*</loc>", x.text)
+        for l in locs:
+            (todo if l.endswith(".xml") or "sitemap" in l else sm_urls).append(l)
+    (d / "sitemap_urls.txt").write_text("\n".join(sm_urls))
+    rep["sitemap_count"] = len(sm_urls)
+    pk = [u for u in sm_urls if re.search(r"pok|โปเก|%E0%B9%82%E0%B8%9B%E0%B9%80%E0%B8%81", u, re.I)]
+    rep["sitemap_pokemon"] = pk[:15]
+    extra = [l for l in sys_extra.get(host, [])]
+    for i, l in enumerate(rep["pokemon_links"][:4] + pk[:3] + extra):
+        x = get(l); (d / f"page{i}.html").write_text(x.text); rep.setdefault("pages", []).append([l, str(x.status_code), len(x.text)])
     (d / "report.json").write_text(json.dumps(rep, ensure_ascii=False, indent=1))
     print(json.dumps(rep, ensure_ascii=False)[:1500], flush=True)
