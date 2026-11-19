@@ -1,0 +1,11 @@
+# Manual matches, for listings the auto-matcher gets wrong or misses
+# (common for Thai-language titles). Find the TCGplayer ID in the product URL:
+#   https://www.tcgplayer.com/product/123456/...  ->  tcgplayer_id: 123456
+#
+# Match by the exact listing URL, or by text contained in the listing title.
+
+overrides: []
+#  - url: https://pokesona.com/products/mega-rayquaza-ex-sar-110-076
+#    tcgplayer_id: 123456
+#  - title_contains: "เมก้าเรย์ควาซา ex SAR"
+#    tcgplayer_id: 123456

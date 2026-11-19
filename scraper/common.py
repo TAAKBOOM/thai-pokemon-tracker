@@ -1,0 +1,111 @@
+"""Shared helpers: HTTP session, product classification, card-number parsing."""
+import re
+import time
+
+import requests
+
+UA = "ThaiTCGTracker/1.0 (+price comparison; contact: set-your-email@example.com)"
+
+session = requests.Session()
+session.headers.update({"User-Agent": UA, "Accept": "application/json,text/html;q=0.9"})
+
+
+def get(url, polite_delay=1.0, **kw):
+    """GET with a polite delay between requests and a couple of retries."""
+    for attempt in range(3):
+        try:
+            r = session.get(url, timeout=30, **kw)
+            time.sleep(polite_delay)
+            if r.status_code == 429:
+                time.sleep(10 * (attempt + 1))
+                continue
+            return r
+        except requests.RequestException:
+            if attempt == 2:
+                raise
+            time.sleep(3)
+    return r
+
+
+SEALED_WORDS = [
+    "booster box", "booster pack", "booster bundle", "elite trainer", "etb", "display",
+    "collection", "premium", "tin", "starter", "deck", "gift box", "special box",
+    "set box", "case", "blister", "bundle", "partner set", "box", "pack",
+    "บูสเตอร์", "กล่อง", "ซอง", "เด็ค",
+]
+
+NUMBER_RE = re.compile(r"(?<![\d/])([A-Z]{0,4}\d{1,3})\s*/\s*([A-Z]{0,4}-?[A-Z]?\d{1,3}|[A-Z]{1,3}-P)(?![\d])", re.I)
+PROMO_RE = re.compile(r"\b(SVP|SWSH|SM|XY|BW)\s?-?(\d{2,3})\b", re.I)
+
+RARITIES = ["MUR", "SAR", "SIR", "UR", "SR", "AR", "IR", "CHR", "CSR", "HR", "RRR", "RR", "ACE", "MA"]
+
+LANG_HINTS = {
+    "TH": ["thai", "ไทย", " th ", "[th]", "(th)", " t)", "thai version"],
+    "JP": ["japanese", "jp", "jpn", "ญี่ปุ่น", "japan"],
+    "EN": ["english", " en ", "[en]", "(en)", "eng", "อังกฤษ"],
+    "CN": ["chinese", "s-chinese", "t-chinese", "จีน", "cn"],
+    "KR": ["korean", "kr", "เกาหลี"],
+}
+
+
+def card_number(title):
+    """Return a normalised card number like '110/076' or 'SVP-085', else None."""
+    m = NUMBER_RE.search(title or "")
+    if m:
+        a, b = m.group(1).upper(), m.group(2).upper()
+        if a.isdigit():
+            a = a.zfill(3)
+        if b.isdigit():
+            b = b.zfill(3)
+        return f"{a}/{b}"
+    m = PROMO_RE.search(title or "")
+    if m:
+        return f"{m.group(1).upper()}{m.group(2)}"
+    return None
+
+
+def rarity(title):
+    t = f" {(title or '').upper()} "
+    for r in RARITIES:
+        if re.search(rf"[\s\[\(]{r}[\s\]\),]", t):
+            return r
+    return None
+
+
+def language(text):
+    t = f" {(text or '').lower()} "
+    for lang, hints in LANG_HINTS.items():
+        if any(h in t for h in hints):
+            return lang
+    return None
+
+
+def kind(title, product_type="", tags=""):
+    """'single' or 'sealed'."""
+    blob = f"{title} {product_type} {tags}".lower()
+    if card_number(title) or "single" in blob or "การ์ดแยก" in blob:
+        return "single"
+    if any(w in blob for w in SEALED_WORDS):
+        return "sealed"
+    return "single"
+
+
+def norm(text):
+    """Lower-case, strip punctuation/noise for fuzzy matching."""
+    t = (text or "").lower()
+    t = re.sub(r"\[[^\]]*\]|\([^)]*\)", " ", t)
+    t = re.sub(r"pok[eé]mon|tcg|card game|การ์ด|โปเกมอน|japanese|english|thai|ไทย|ญี่ปุ่น", " ", t)
+    t = re.sub(r"[^a-z0-9ก-๙ ]+", " ", t)
+    return re.sub(r"\s+", " ", t).strip()
+
+
+def to_float(price):
+    if price is None:
+        return None
+    if isinstance(price, (int, float)):
+        return float(price)
+    s = re.sub(r"[^\d.,]", "", str(price)).replace(",", "")
+    try:
+        return float(s)
+    except ValueError:
+        return None

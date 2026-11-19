@@ -1,0 +1,54 @@
+# Thai TCG stores to track.
+#
+# platform:
+#   auto        -> tries Shopify, then WooCommerce automatically (start here)
+#   shopify     -> reads https://STORE/products.json (most Thai TCG web shops)
+#   woocommerce -> reads https://STORE/wp-json/wc/store/v1/products
+#   html        -> scrapes a listing page with CSS selectors (see example below)
+#
+# currency: the currency prices are listed in on that site (THB for Thai shops).
+# keywords: only products whose title/type/tags contain one of these are kept,
+#           so a shop that also sells Magic or One Piece only contributes Pokémon.
+
+stores:
+  - name: Pokesona
+    url: https://pokesona.com
+    platform: shopify
+    currency: THB
+    city: Bangkok
+
+  - name: Kira Cards
+    url: https://www.kira-cards.com
+    platform: auto
+    currency: THB
+    city: Phuket
+
+  - name: Yannick The Gathering
+    url: https://yannickthegathering.com
+    platform: auto
+    currency: THB
+    city: Bangkok
+
+  - name: Thai PKMN
+    url: https://thaipkmn.shop
+    platform: auto
+    currency: THB
+    city: Thailand
+
+  # Example of a custom HTML store (copy, fill in, remove the leading #):
+  # - name: Example Shop
+  #   url: https://example-shop.co.th
+  #   platform: html
+  #   currency: THB
+  #   pages:                      # listing pages to read ({page} = 1,2,3...)
+  #     - https://example-shop.co.th/category/pokemon?page={page}
+  #   max_pages: 20
+  #   selectors:
+  #     item: .product-card
+  #     title: .product-title
+  #     price: .price
+  #     link: a
+  #     image: img
+  #     sold_out: .sold-out       # optional: element present = out of stock
+
+keywords: [pokemon, pokémon, โปเกมอน, ptcg]
