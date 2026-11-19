@@ -44,10 +44,13 @@ stores:
   - name: Thai PKMN
     url: https://thaipkmn.shop
     platform: woocommerce
-    currency: USD          # prices on this shop are in US dollars
+    currency: THB
     city: Thailand
     keywords: []           # a Pokémon shop whose titles are just card names, so keep everything...
     exclude: [street fighter, sf zero, naruto, one piece, dragon ball]   # ...except its other games
+    exclude_urls: [/fr/]   # the same cards again under their French names
+    # Street Fighter singles are titled just "<character> <rarity>", e.g. "Guile SR"
+    exclude_title_regex: "^(balrog|guile|vega|ryu|ken|chun-li|blanka|dhalsim|zangief|e\\. ?honda|m\\. ?bison|sagat|cammy|akuma|gouki|sakura|rose|adon|birdie|guy|sodom|nash|charlie|rolento|dee jay|fei long|t\\. ?hawk|gen|dan|karin|rainbow mika|cody|juri|abel|rufus|seth|elena|ibuki|makoto|oro|yun|yang|alex|dudley|necro|remy|hugo|urien|gill|q|twelve|sean)\\b"
 
   - name: Big Bear Cards
     url: https://bigbearcards.com

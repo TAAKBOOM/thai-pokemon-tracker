@@ -20,9 +20,6 @@ jobs:
   update:
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -85,9 +82,22 @@ jobs:
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
+
+  # Publishing runs as its own job after the upload has finished (GitHub's recommended setup);
+  # publishing in the same job sometimes can't find the files it just uploaded.
+  deploy:
+    needs: update
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
       - uses: actions/deploy-pages@v4
         id: deployment
         continue-on-error: true
-      - name: Retry publishing once if GitHub had a hiccup
+      - name: Wait a moment if GitHub had a hiccup
+        if: steps.deployment.outcome == 'failure'
+        run: sleep 45
+      - name: Retry publishing
         if: steps.deployment.outcome == 'failure'
         uses: actions/deploy-pages@v4

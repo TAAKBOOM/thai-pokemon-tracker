@@ -52,6 +52,8 @@ LANG_PATH = re.compile(r"/(fr|de|es|it|ja|zh|ko|th)(/|$)")
 
 def build_listings(store, raw, keywords, matcher, rate, exclude=()):
     out, seen = [], {}
+    skip_urls = store.get("exclude_urls", [])
+    skip_title = re.compile(store["exclude_title_regex"], re.I) if store.get("exclude_title_regex") else None
     # Multilingual shops list one product once per language page (/en/, /fr/...): keep one, preferring English.
     raw = sorted(raw, key=lambda r: bool(LANG_PATH.search(r.get("url") or "")))
     for r in raw:
@@ -64,7 +66,9 @@ def build_listings(store, raw, keywords, matcher, rate, exclude=()):
         seen[dup] = True
         hint = r.get("hint") or ""
         blob = f"{r['title']} {r.get('product_type','')} {r.get('tags','')} {r.get('vendor','')} {r.get('url','')} {hint}".lower()
-        if any(x in f"{r['title']} {r.get('product_type', '')}".lower() for x in exclude):
+        if any(x in f"{r['title']} {r.get('product_type', '')} {r.get('tags', '')}".lower() for x in exclude):
+            continue
+        if any(u in (r.get("url") or "") for u in skip_urls) or (skip_title and skip_title.search(r["title"])):
             continue
         listing = {
             "store": store["name"],
