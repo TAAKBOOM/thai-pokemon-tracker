@@ -90,10 +90,15 @@ def kind(title, product_type="", tags=""):
     return "single"
 
 
-def norm(text):
-    """Lower-case, strip punctuation/noise for fuzzy matching."""
+def norm(text, keep_brackets=True):
+    """Lower-case, strip punctuation/noise for fuzzy matching.
+
+    Bracketed text is kept by default: in "Eevee Evolutions Tin [Vaporeon V]" it is
+    what tells one product from another.
+    """
     t = (text or "").lower()
-    t = re.sub(r"\[[^\]]*\]|\([^)]*\)", " ", t)
+    if not keep_brackets:
+        t = re.sub(r"\[[^\]]*\]|\([^)]*\)", " ", t)
     t = re.sub(r"pok[eé]mon|tcg|card game|การ์ด|โปเกมอน|japanese|english|thai|ไทย|ญี่ปุ่น", " ", t)
     t = re.sub(r"[^a-z0-9ก-๙ ]+", " ", t)
     return re.sub(r"\s+", " ", t).strip()

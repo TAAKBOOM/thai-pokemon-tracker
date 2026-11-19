@@ -7,15 +7,31 @@ from .common import NUMBER_RE, PROMO_RE, card_number, norm
 STOP = {"ex", "the", "and", "of", "a", "-", "sv", "m"}
 
 
-def tokens(text):
+def tokens(text, keep_brackets=True):
     t = NUMBER_RE.sub(" ", text or "")
     t = PROMO_RE.sub(" ", t)
-    return [w for w in norm(t).split() if w]
+    return [w for w in norm(t, keep_brackets).split() if w]
+
+
+# Words that say nothing about which product it is.
+NOISE = {"jp", "jpn", "en", "eng", "th", "sealed", "new", "version", "ver", "official", "authentic",
+         "japan", "lang", "language", "nm", "near", "mint", "box", "s"}
+
+
+def sealed_score(listing_title, tcg_name):
+    """Two-way word overlap (F1), so "Pikachu" doesn't match every tin with Pikachu in it."""
+    a = set(tokens(listing_title)) - STOP - NOISE
+    b = set(tokens(tcg_name)) - STOP - NOISE
+    if not a or not b:
+        return 0.0
+    both = len(a & b)
+    return 2 * both / (len(a) + len(b))
 
 
 def name_score(listing_title, tcg_name):
     """Share of the TCGplayer name's words that appear in the listing title."""
-    want = [w for w in tokens(tcg_name) if w not in STOP] or tokens(tcg_name)
+    # Brackets in a TCGplayer card name are notes like "(Secret)", not required words.
+    want = [w for w in tokens(tcg_name, False) if w not in STOP] or tokens(tcg_name, False)
     if not want:
         return 0.0
     have = set(tokens(listing_title))
@@ -39,7 +55,7 @@ class Matcher:
         for i in tcg_items:
             if i.get("number"):
                 self.by_number[_num_key(i["number"])].append(i)
-                for w in set(tokens(i["name"])) - STOP:
+                for w in set(tokens(i["name"], False)) - STOP:
                     self.by_token[w].append(i)
             else:
                 self.sealed.append(i)
@@ -86,13 +102,23 @@ class Matcher:
                 return best, conf
             return None, None
 
-        pool = self.sealed if listing["kind"] == "sealed" else self._token_pool(title)
-        for i in pool:
+        if listing["kind"] == "sealed":
+            for i in self.sealed:
+                # Sealed products differ by language (an English and a Japanese 151 pack are different things).
+                if lang and lang != i["lang"]:
+                    continue
+                s = sealed_score(title, i["name"]) + self._set_bonus(title, i) * 0.25
+                if s > best_score:
+                    best, best_score = i, s
+            if best and best_score >= 0.8:
+                return best, "medium"
+            return None, None
+
+        for i in self._token_pool(title):
             s = name_score(title, i["name"]) + self._lang_bonus(lang, i) * 0.5 + self._set_bonus(title, i) * 0.5
             if s > best_score:
                 best, best_score = i, s
-        threshold = 0.95 if listing["kind"] == "sealed" else 1.05
-        if best and best_score >= threshold:
+        if best and best_score >= 1.05:
             return best, "medium" if lang == best["lang"] else "approx"
         return None, None
 

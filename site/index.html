@@ -32,6 +32,10 @@
   select,label.chk{font:inherit;background:var(--card);color:var(--ink);border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;color:var(--ink)}
   label.chk[hidden],select[hidden]{display:none}
   label.chk{display:flex;gap:6px;align-items:center;cursor:pointer}
+  .tabs{display:flex;gap:4px;border-bottom:1.5px solid var(--line);margin:2px 0 0}
+  .tabs button{font:inherit;font-size:16px;font-weight:600;background:none;border:0;border-bottom:3px solid transparent;margin-bottom:-1.5px;padding:10px 14px;color:var(--muted);cursor:pointer;min-height:44px}
+  .tabs button.on{color:var(--ink);border-bottom-color:var(--accent)}
+  .controls.filters{position:static;padding-top:12px}
   .count{color:var(--muted);font-size:13.5px;margin:4px 0 12px}
   .p{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);margin-bottom:12px;overflow:hidden}
   .head{display:grid;grid-template-columns:64px 1fr auto;gap:14px;padding:14px;align-items:center}
@@ -90,9 +94,20 @@
 <main>
   <div class="controls">
     <input id="q" type="search" placeholder="Search a card or product… e.g. rayquaza storm emeralda" autocomplete="off">
+  </div>
+  <nav class="tabs" id="view">
+    <button data-v="all" class="on">All products</button><button data-v="deals">Deals</button>
+  </nav>
+  <div class="controls filters">
     <div class="seg" id="kind">
-      <button data-k="all" class="on">All</button><button data-k="single">Singles</button><button data-k="sealed">Sealed</button><button data-k="deals">Deals</button>
+      <button data-k="all" class="on">All</button><button data-k="single">Singles</button><button data-k="sealed">Sealed</button>
     </div>
+    <select id="lang" aria-label="Card language">
+      <option value="all">All languages</option>
+      <option value="EN">English</option>
+      <option value="JP">Japanese</option>
+      <option value="TH">Thai</option>
+    </select>
     <select id="sort">
       <option value="stores">Most stores</option>
       <option value="low">Price: low to high</option>
@@ -113,7 +128,7 @@ const usd = n => n == null ? "–" : "$" + n.toLocaleString("en-US", {minimumFra
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const fold = s => String(s || "").toLowerCase().normalize("NFKD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9ก-๙/]+/g, " ");
 
-let DATA, HIST = {}, kindF = "all";
+let DATA, HIST = {}, kindF = "all", viewF = "all";
 
 async function load() {
   if (DEMO_DATA) { DATA = DEMO_DATA; HIST = DEMO_DATA.history || {}; }
@@ -142,44 +157,57 @@ function badge(pct) {
   return `<span class="badge ${cls}">${Math.abs(pct).toFixed(0)}% ${word} TCGplayer</span>`;
 }
 
+// Which language a listing is: what the shop says, else the TCGplayer product it matched.
+function langOf(l, p) {
+  return l.lang || (l.match && l.match !== "approx" && p.tcg ? p.tcg.lang : null);
+}
+
+// The listings a product shows under the current filters.
+function visible(p) {
+  const lang = $("#lang").value, stockOnly = viewF === "deals" || $("#stock").checked;
+  return p.listings.filter(l => (lang === "all" || langOf(l, p) === lang) && (!stockOnly || l.in_stock));
+}
+
 // A deal = cheapest in-stock listing priced below TCGplayer. Thai-language listings are left out
 // because they're compared with the Japanese card, which isn't a like-for-like price.
 function dealPrice(p) {
-  const ok = p.listings.filter(l => l.in_stock && l.match !== "approx").map(l => l.price_thb);
+  const ok = p._ls.filter(l => l.in_stock && l.match !== "approx").map(l => l.price_thb);
   return ok.length ? Math.min(...ok) : null;
 }
 const dealPct = p => diffPct(dealPrice(p), p);
 
 function render() {
   const words = fold($("#q").value).split(" ").filter(Boolean);
-  const deals = kindF === "deals";
-  const stockOnly = deals || $("#stock").checked;
+  const deals = viewF === "deals";
   $("#sort").hidden = deals; $("#stock").parentNode.hidden = deals;
+  for (const p of DATA.products) p._ls = visible(p);
   let rows = DATA.products.filter(p =>
-    (kindF === "all" || deals || p.kind === kindF) &&
+    (kindF === "all" || p.kind === kindF) &&
     words.every(w => p._text.includes(w)) &&
-    (!stockOnly || p.listings.some(l => l.in_stock)) &&
+    p._ls.length &&
     (!deals || (dealPct(p) ?? 0) < 0));
-  const price = p => deals ? dealPrice(p) : stockOnly ? p.best_thb : Math.min(...p.listings.map(l => l.price_thb));
+  const price = p => deals ? dealPrice(p) : Math.min(...p._ls.filter(l => l.in_stock).map(l => l.price_thb), ...(p._ls.some(l => l.in_stock) ? [] : p._ls.map(l => l.price_thb)));
   if (deals) rows.sort((a, b) => dealPct(a) - dealPct(b));
   else rows.sort({
-    stores: (a, b) => b.listings.length - a.listings.length,
+    stores: (a, b) => b._ls.length - a._ls.length,
     low: (a, b) => price(a) - price(b),
     high: (a, b) => price(b) - price(a),
   }[$("#sort").value]);
-  const n = rows.length.toLocaleString();
-  $("#count").textContent = (deals ? `${n} product${rows.length === 1 ? "" : "s"} cheaper in Thailand than on TCGplayer, biggest saving first`
-    : `${n} product${rows.length === 1 ? "" : "s"}`) + (words.length ? ` matching “${$("#q").value.trim()}”` : "");
+  const n = rows.length.toLocaleString(), plural = rows.length === 1 ? "" : "s";
+  const what = {all: "product", single: "single", sealed: "sealed product"}[kindF];
+  const langName = {all: "", EN: "English ", JP: "Japanese ", TH: "Thai "}[$("#lang").value];
+  $("#count").textContent = (deals ? `${n} ${langName}${what}${plural} cheaper in Thailand than on TCGplayer, biggest saving first`
+    : `${n} ${langName}${what}${plural}`) + (words.length ? ` matching “${$("#q").value.trim()}”` : "");
   const shown = rows.slice(0, 200);
-  $("#list").innerHTML = shown.length ? shown.map((p, i) => card(p, price(p), true)).join("")
-    : `<div class="empty">${deals ? "No deals right now: no store is selling below the TCGplayer price." : "No products found. Try a shorter search, or untick “In stock only”."}</div>`;
+  $("#list").innerHTML = shown.length ? shown.map(p => card(p, price(p), true)).join("")
+    : `<div class="empty">${deals ? "No deals for these filters right now: no store is selling below the TCGplayer price." : "No products found. Try a shorter search, another language, or untick “In stock only”."}</div>`;
 }
 
 function card(p, best, open) {
   const t = p.tcg;
-  const ls = p.listings.filter(l => !$("#stock").checked || l.in_stock);
+  const ls = p._ls;
   const storesN = new Set(ls.map(l => l.store)).size;
-  const approx = p.listings.some(l => l.match === "approx");
+  const approx = ls.some(l => l.match === "approx");
   const img = p.image ? `<img class="thumb" loading="lazy" src="${esc(p.image)}" alt="">` : `<div class="thumb">${p.kind === "sealed" ? "Sealed" : "Card"}</div>`;
   const tags = [p.kind === "sealed" ? "Sealed" : "Single", t && t.rarity, t && ({EN: "English", JP: "Japanese"}[t.lang])].filter(Boolean);
   return `<div class="p${open ? " open" : ""}">
@@ -229,6 +257,11 @@ let timer;
 $("#q").addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(render, 120); });
 $("#sort").addEventListener("change", render);
 $("#stock").addEventListener("change", render);
+$("#lang").addEventListener("change", render);
+$("#view").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  viewF = b.dataset.v; document.querySelectorAll("#view button").forEach(x => x.classList.toggle("on", x === b)); render();
+});
 $("#kind").addEventListener("click", e => {
   const b = e.target.closest("button"); if (!b) return;
   kindF = b.dataset.k; document.querySelectorAll("#kind button").forEach(x => x.classList.toggle("on", x === b)); render();

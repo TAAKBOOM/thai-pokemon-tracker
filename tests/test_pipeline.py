@@ -96,3 +96,27 @@ def test_woocommerce(monkeypatch):
     monkeypatch.setattr(woocommerce, "get", fake_get({"page=1": body}))
     raw = woocommerce.fetch({"url": "https://w.example"}, max_pages=2)
     assert raw[0]["price"] == 4500.0
+
+
+SEALED = [summarise(x) for x in [
+    {"id": 20, "name": "Eevee Evolutions Tin [Vaporeon V]", "set": "Tins", "setAbbr": None, "number": None, "rarity": None,
+     "lang": "EN", "kind": "sealed", "url": "", "img": None, "variants": {"Normal": {"market": 30.0, "low": 28.0, "mid": 30.0}}},
+    {"id": 21, "name": "Eevee Evolutions Tin [Jolteon V]", "set": "Tins", "setAbbr": None, "number": None, "rarity": None,
+     "lang": "EN", "kind": "sealed", "url": "", "img": None, "variants": {"Normal": {"market": 31.0, "low": 28.0, "mid": 30.0}}},
+    {"id": 22, "name": "Pikachu", "set": "Mini Tins", "setAbbr": None, "number": None, "rarity": None,
+     "lang": "EN", "kind": "sealed", "url": "", "img": None, "variants": {"Normal": {"market": 9.0, "low": 8.0, "mid": 9.0}}},
+    {"id": 23, "name": "151 Booster Pack", "set": "SV: 151", "setAbbr": "SV2a", "number": None, "rarity": None,
+     "lang": "JP", "kind": "sealed", "url": "", "img": None, "variants": {"Normal": {"market": 6.0, "low": 5.0, "mid": 6.0}}},
+]]
+
+
+def test_sealed_variants_stay_separate():
+    m = Matcher(SEALED)
+    jolt, _ = m.match({"title": "Pokémon TCG: Eevee Evolutions Tin - Jolteon", "lang": "EN", "kind": "sealed"})
+    assert jolt and jolt["id"] == 21
+    tin, _ = m.match({"title": "Pokémon TCG: Paldea Friends Mini Tins - Pikachu", "lang": "EN", "kind": "sealed"})
+    assert tin is None   # a one-word "Pikachu" product must not swallow every tin
+    en_pack, _ = m.match({"title": "Pokemon 151 Booster Pack English", "lang": "EN", "kind": "sealed"})
+    assert en_pack is None   # English pack must not match the Japanese one
+    jp_pack, _ = m.match({"title": "Pokemon 151 JP Booster Pack", "lang": "JP", "kind": "sealed"})
+    assert jp_pack and jp_pack["id"] == 23
