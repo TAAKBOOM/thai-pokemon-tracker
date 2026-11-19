@@ -79,7 +79,10 @@ class Matcher:
         return 0.0
 
     def match(self, listing):
-        title = listing["title"]
+        title = listing.get("_match_title") or listing["title"]
+        hinted = self.items.get(listing.get("_tcg_id_hint"))
+        if hinted:   # the shop told us the exact TCGplayer product
+            return hinted, "high"
         for o in self.overrides:
             if o.get("url") == listing.get("url") or (
                 o.get("title_contains") and o["title_contains"].lower() in title.lower()

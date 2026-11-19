@@ -130,3 +130,38 @@ def test_duplicate_language_pages_and_accessories():
     ]
     ls = run.build_listings({"name": "S", "url": "", "currency": "THB"}, raw, ["pokemon", "pack"], Matcher(TCG), 33.0, ["keychain"])
     assert [l["url"] for l in ls] == ["https://s/en/product/pack/"]
+
+
+def test_jsonld_shop():
+    from scraper.adapters import jsonld
+    page = '''<script type="application/ld+json">{"@type":"ItemList","itemListElement":[
+      {"@type":"ListItem","item":{"@type":"Product","name":"Vivid Voltage","description":"Pokemon TCG Vivid Voltage Booster Box. 36 packs, English edition.",
+       "url":"https://k/en/product/pokemon-en-vivid-voltage","brand":{"name":"Pokémon"},
+       "offers":{"price":"5900.00","priceCurrency":"THB","availability":"https://schema.org/InStock"}}},
+      {"@type":"ListItem","item":{"@type":"Product","name":"OP-01 Romance Dawn Booster Box","brand":{"name":"One Piece"},
+       "offers":{"price":"3000","priceCurrency":"THB","availability":"https://schema.org/OutOfStock","url":"https://k/op"}}}]}</script>'''
+    raw = jsonld.parse(page)
+    assert raw[0]["match_title"] == "Vivid Voltage booster box" and raw[0]["in_stock"] and not raw[1]["in_stock"]
+    ls = run.build_listings({"name": "K", "url": "", "currency": "THB"}, raw, ["pokemon", "pokémon"], Matcher([]), 33.0)
+    assert len(ls) == 1 and ls[0]["kind"] == "sealed" and ls[0]["lang"] == "EN"   # One Piece dropped
+
+
+def test_nextrsc_shop():
+    import json as _json
+    from scraper.adapters import nextrsc
+    payload = 'x:{"product":{"name":"Shadow Rider Calyrex V Box","meta":"Pokemon Sealed","priceValue":2455,"handle":"calyrex-box",' \
+              '"link":"/products/calyrex-box","tcgProductId":240977,"categoryId":3,"isSealed":true,"hideVariants":true,' \
+              '"variants":[{"id":"1","title":"Sealed","price":2455,"maxQuantity":1,"displayLabel":"NM"}]}}'
+    page = f'<script>self.__next_f.push([1,{_json.dumps(payload)}])</script>'
+    raw = nextrsc.parse(page, "https://y")
+    assert raw[0]["tcg_id_hint"] == 240977 and raw[0]["url"] == "https://y/products/calyrex-box" and raw[0]["lang"] == "EN"
+    tcg = [summarise({"id": 240977, "name": "Shadow Rider Calyrex V Box", "set": "SWSH06", "setAbbr": None, "number": None,
+                      "rarity": None, "lang": "EN", "kind": "sealed", "url": "", "img": None,
+                      "variants": {"Normal": {"market": 70.0, "low": 60.0, "mid": 65.0}}})]
+    ls = run.build_listings({"name": "Y", "url": "", "currency": "THB"}, raw, ["pokemon"], Matcher(tcg), 33.0)
+    assert ls[0]["tcg_id"] == 240977 and ls[0]["match"] == "high"
+
+
+def test_language_words():
+    assert language("Premium TCG retailer in Phuket, Thailand. English edition.") == "EN"
+    assert language("image.jpg booster pack") is None

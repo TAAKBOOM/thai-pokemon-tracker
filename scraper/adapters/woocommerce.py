@@ -13,7 +13,8 @@ def fetch(store, max_pages=60):
     base = store["url"].rstrip("/")
     out = []
     for page in range(1, max_pages + 1):
-        r = get(f"{base}{API}?per_page=100&page={page}")
+        search = f"&search={store['search']}" if store.get("search") else ""
+        r = get(f"{base}{API}?per_page=100&page={page}{search}")
         if not r.ok:
             break
         items = r.json()

@@ -19,21 +19,63 @@ stores:
 
   - name: Kira Cards
     url: https://www.kira-cards.com
-    platform: auto
+    platform: jsonld
     currency: THB
     city: Phuket
+    pages:
+      - https://www.kira-cards.com/en/pokemon
+      - https://www.kira-cards.com/en/pokemon/english
+      - https://www.kira-cards.com/en/pokemon/japanese
+      - https://www.kira-cards.com/en/pokemon/booster-boxes
+      - https://www.kira-cards.com/en/pokemon/booster-packs
+      - https://www.kira-cards.com/en/pokemon/elite-trainer-boxes
 
   - name: Yannick The Gathering
     url: https://yannickthegathering.com
-    platform: auto
+    platform: nextrsc
     currency: THB
     city: Bangkok
+    max_pages: 20
+    pages:
+      - https://yannickthegathering.com/collections/s/pokemon
+      - https://yannickthegathering.com/collections/s/pokemon-sealed
+      - https://yannickthegathering.com/collections/pokemon
 
   - name: Thai PKMN
     url: https://thaipkmn.shop
     platform: auto
     currency: THB
     city: Thailand
+
+  - name: Big Bear Cards
+    url: https://bigbearcards.com
+    platform: shopify
+    currency: THB
+    city: Bangkok
+
+  # SASOM is a marketplace (lowest price from its sellers). Its robots.txt doesn't allow following
+  # page numbers, so only the products shown on the first page of each list are included.
+  - name: SASOM
+    url: https://sasom.co.th
+    platform: jsonld
+    currency: THB
+    city: Bangkok
+    pages:
+      - https://sasom.co.th/en/shop/collectibles/pokemon
+      - https://sasom.co.th/en/brand/pokemon
+      - https://sasom.co.th/en/shop/trading-card-box-and-pack
+      - https://sasom.co.th/th/brand/pokemon
+
+  - name: Cardify (Kingdom Come)
+    url: https://www.kingdomcome.co.th
+    platform: woocommerce
+    search: pokemon
+    currency: THB
+    city: Bangkok
+
+  # VG card shop (LnwShop) times out from GitHub's servers (likely blocks non-Thai visitors).
+  # - name: VG card shop
+  #   url: https://www.vgcardshop.com
 
   # Example of a custom HTML store (copy, fill in, remove the leading #):
   # - name: Example Shop

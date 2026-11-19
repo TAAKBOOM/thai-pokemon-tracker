@@ -14,8 +14,8 @@ from pathlib import Path
 import yaml
 
 from . import tcgplayer
-from .adapters import html, shopify, woocommerce
-from .common import card_number, get, kind, language, norm, rarity, to_float
+from .adapters import html, jsonld, nextrsc, shopify, woocommerce
+from .common import NUMBER_RE, card_number, get, kind, language, norm, rarity, to_float
 from .match import Matcher
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -42,7 +42,7 @@ def fetch_store(store):
             platform = "woocommerce"
         else:
             raise RuntimeError("couldn't detect platform; set platform: html with selectors in stores.yaml")
-    adapter = {"shopify": shopify, "woocommerce": woocommerce, "html": html}[platform]
+    adapter = {"shopify": shopify, "woocommerce": woocommerce, "html": html, "jsonld": jsonld, "nextrsc": nextrsc}[platform]
     return adapter.fetch(store), platform
 
 
@@ -61,7 +61,8 @@ def build_listings(store, raw, keywords, matcher, rate, exclude=()):
         if dup in seen:
             continue
         seen[dup] = True
-        blob = f"{r['title']} {r.get('product_type','')} {r.get('tags','')} {r.get('vendor','')} {r.get('url','')}".lower()
+        hint = r.get("hint") or ""
+        blob = f"{r['title']} {r.get('product_type','')} {r.get('tags','')} {r.get('vendor','')} {r.get('url','')} {hint}".lower()
         if any(x in r["title"].lower() for x in exclude):
             continue
         listing = {
@@ -70,17 +71,21 @@ def build_listings(store, raw, keywords, matcher, rate, exclude=()):
             "url": r.get("url"),
             "image": r.get("image"),
             "in_stock": r.get("in_stock", True),
-            "kind": kind(r["title"], r.get("product_type", ""), r.get("tags", "")),
-            "lang": language(blob),
-            "number": card_number(r["title"]),
+            "kind": r.get("kind") or kind(r.get("match_title") or r["title"], r.get("product_type", ""), r.get("tags", "")),
+            "lang": r.get("lang") or language(f"{r['title']} {hint}") or language(blob),
+            "number": card_number(r["title"]) or (card_number(hint) if NUMBER_RE.search(hint) else None),
             "rarity": rarity(r["title"]),
             "price": price,
-            "currency": store.get("currency", "THB"),
+            "currency": r.get("currency") or store.get("currency", "THB"),
         }
+        listing["_match_title"] = " ".join(filter(None, [r.get("match_title") or r["title"],
+                                                         None if card_number(r["title"]) else listing["number"]]))
+        listing["_tcg_id_hint"] = r.get("tcg_id_hint")
         listing["price_thb"] = round(price * rate, 2) if listing["currency"] == "USD" else price
         item, conf = matcher.match(listing)
         listing["tcg_id"] = item["id"] if item else None
         listing["match"] = conf
+        listing.pop("_match_title"); listing.pop("_tcg_id_hint")
         if any(k in blob for k in keywords) or conf in ("high", "manual"):
             out.append(listing)
     return out

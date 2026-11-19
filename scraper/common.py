@@ -39,12 +39,13 @@ PROMO_RE = re.compile(r"\b(SVP|SWSH|SM|XY|BW)\s?-?(\d{2,3})\b", re.I)
 
 RARITIES = ["MUR", "SAR", "SIR", "UR", "SR", "AR", "IR", "CHR", "CSR", "HR", "RRR", "RR", "ACE", "MA"]
 
+# Whole-word patterns, so "Thailand" isn't read as Thai and ".jpg" isn't read as Japanese.
 LANG_HINTS = {
-    "TH": ["thai", "ไทย", " th ", "[th]", "(th)", " t)", "thai version"],
-    "JP": ["japanese", "jp", "jpn", "ญี่ปุ่น", "japan"],
-    "EN": ["english", " en ", "[en]", "(en)", "eng", "อังกฤษ"],
-    "CN": ["chinese", "s-chinese", "t-chinese", "จีน", "cn"],
-    "KR": ["korean", "kr", "เกาหลี"],
+    "TH": [r"\bthai\b", r"ไทย", r"\[th\]", r"\(th\)", r"\bth\)", r"\bthai version\b", r"-th$", r"\bt\]"],
+    "JP": [r"\bjapanese\b", r"\bjp\b", r"\bjpn\b", r"ญี่ปุ่น", r"\[jp\]", r"-jp\b"],
+    "EN": [r"\benglish\b", r"\ben\b", r"\beng\b", r"อังกฤษ", r"-en-"],
+    "CN": [r"\bchinese\b", r"\bs-chinese\b", r"\bt-chinese\b", r"จีน", r"\bcn\b"],
+    "KR": [r"\bkorean\b", r"\bkr\b", r"เกาหลี"],
 }
 
 
@@ -73,9 +74,9 @@ def rarity(title):
 
 
 def language(text):
-    t = f" {(text or '').lower()} "
-    for lang, hints in LANG_HINTS.items():
-        if any(h in t for h in hints):
+    t = (text or "").lower()
+    for lang, pats in LANG_HINTS.items():
+        if any(re.search(p, t) for p in pats):
             return lang
     return None
 
