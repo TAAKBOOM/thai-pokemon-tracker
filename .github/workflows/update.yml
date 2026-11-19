@@ -1,9 +1,11 @@
 name: Update prices & deploy site
 
+# Shop prices: every 15 minutes.  TCGplayer prices: once a day (tcgcsv.com only refreshes daily),
+# reused from a cache in between so each 15-minute run takes about a minute.
 on:
   schedule:
-    - cron: "17 2 * * *"     # every day at 09:17 Bangkok time (02:17 UTC)
-  workflow_dispatch:          # lets you run it by hand from the Actions tab
+    - cron: "7,22,37,52 * * * *"   # every 15 min (GitHub can start scheduled runs a few minutes late)
+  workflow_dispatch:                # lets you run it by hand from the Actions tab
 
 permissions:
   contents: write
@@ -17,7 +19,7 @@ concurrency:
 jobs:
   update:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 45
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -26,16 +28,46 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: pip
       - run: pip install -r requirements.txt
-      - name: Scrape stores and TCGplayer
-        run: python -m scraper.run
-      - name: Save new prices to the repo (keeps price history)
+
+      - name: Today's date (Bangkok)
+        id: day
+        run: echo "date=$(TZ=Asia/Bangkok date +%F)" >> "$GITHUB_OUTPUT"
+
+      - name: Reuse today's TCGplayer prices if already downloaded
+        id: tcg
+        uses: actions/cache/restore@v4
+        with:
+          path: .cache
+          key: tcgplayer-${{ steps.day.outputs.date }}
+
+      - name: Scrape shops (and TCGplayer once a day)
+        run: |
+          if [ "${{ steps.tcg.outputs.cache-hit }}" = "true" ]; then
+            python -m scraper.run --skip-tcg
+          else
+            python -m scraper.run
+          fi
+
+      - name: Keep today's TCGplayer prices for the next runs
+        if: steps.tcg.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .cache
+          key: tcgplayer-${{ steps.day.outputs.date }}
+
+      # Saving to the repo keeps the price history. Done once a day (on the TCGplayer refresh)
+      # so the repo doesn't fill up with 96 commits a day; the live site still updates every run.
+      - name: Save prices to the repo (daily)
+        if: steps.tcg.outputs.cache-hit != 'true'
         run: |
           git config user.name "price-bot"
           git config user.email "price-bot@users.noreply.github.com"
           git add site/data
-          git commit -m "Update prices $(date -u +%F)" || echo "No changes"
-          git push
+          git commit -m "Update prices ${{ steps.day.outputs.date }}" || echo "No changes"
+          git pull --rebase origin main && git push
+
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site

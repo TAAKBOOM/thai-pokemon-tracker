@@ -4,7 +4,7 @@ Search any Pokémon single or sealed product and see every Thai card shop that l
 
 - **Scraper** (`scraper/`) reads each shop in `stores.yaml`, pulls TCGplayer prices from [tcgcsv.com](https://tcgcsv.com) (a free nightly mirror of TCGplayer data), matches listings to TCGplayer products and writes `site/data/data.json`.
 - **Website** (`site/index.html`) is a single static page that loads that JSON: search, singles/sealed filter, sort by best deal, price history sparkline.
-- **Automation** (`.github/workflows/update.yml`) runs the scraper every morning and republishes the site on GitHub Pages, for free.
+- **Automation** (`.github/workflows/update.yml`) checks the shops every 15 minutes and TCGplayer once a day, and republishes the site on GitHub Pages, for free.
 
 ## Put it online (about 10 minutes, no server needed)
 
@@ -12,7 +12,7 @@ Search any Pokémon single or sealed product and see every Thai card shop that l
 2. Upload everything in this folder (keep the `.github` folder — on a Mac press `Cmd+Shift+.` to see hidden folders).
 3. In the repo: **Settings → Pages → Source: GitHub Actions**.
 4. **Actions** tab → "Update prices & deploy site" → **Run workflow**. The first run takes ~10–20 min (it downloads all TCGplayer Pokémon sets).
-5. Your site is live at `https://<your-username>.github.io/thai-tcg-tracker/` and refreshes daily at 09:17 Bangkok time.
+5. Your site is live at `https://<your-username>.github.io/thai-tcg-tracker/` and refreshes shop prices every 15 minutes (TCGplayer prices once a day).
 
 ## Run it on your own computer
 
