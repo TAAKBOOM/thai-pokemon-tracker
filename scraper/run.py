@@ -5,6 +5,7 @@ Usage:  python -m scraper.run            (full run)
 """
 import argparse
 import json
+import re
 import sys
 import traceback
 from datetime import datetime, timezone
@@ -45,13 +46,24 @@ def fetch_store(store):
     return adapter.fetch(store), platform
 
 
-def build_listings(store, raw, keywords, matcher, rate):
-    out = []
+LANG_PATH = re.compile(r"/(fr|de|es|it|ja|zh|ko|th)(/|$)")
+
+
+def build_listings(store, raw, keywords, matcher, rate, exclude=()):
+    out, seen = [], {}
+    # Multilingual shops list one product once per language page (/en/, /fr/...): keep one, preferring English.
+    raw = sorted(raw, key=lambda r: bool(LANG_PATH.search(r.get("url") or "")))
     for r in raw:
         price = to_float(r.get("price"))
         if not price:
             continue
+        dup = (r["title"].strip().lower(), price)
+        if dup in seen:
+            continue
+        seen[dup] = True
         blob = f"{r['title']} {r.get('product_type','')} {r.get('tags','')} {r.get('vendor','')} {r.get('url','')}".lower()
+        if any(x in r["title"].lower() for x in exclude):
+            continue
         listing = {
             "store": store["name"],
             "title": r["title"],
@@ -125,6 +137,7 @@ def main():
     overrides_path = ROOT / "overrides.yaml"
     overrides = (yaml.safe_load(overrides_path.read_text()) or {}).get("overrides", []) if overrides_path.exists() else []
     keywords = [k.lower() for k in cfg.get("keywords", [])]
+    exclude = [k.lower() for k in cfg.get("exclude", [])]
     DATA.mkdir(parents=True, exist_ok=True)
     CACHE.mkdir(exist_ok=True)
 
@@ -143,7 +156,7 @@ def main():
     for store in cfg["stores"]:
         try:
             raw, platform = fetch_store(store)
-            ls = build_listings(store, raw, keywords, matcher, rate)
+            ls = build_listings(store, raw, keywords, matcher, rate, exclude)
             all_listings += ls
             status.append({"name": store["name"], "url": store["url"], "platform": platform, "ok": True,
                            "listings": len(ls), "matched": sum(1 for l in ls if l["tcg_id"])})

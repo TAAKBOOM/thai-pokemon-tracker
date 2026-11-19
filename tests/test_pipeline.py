@@ -120,3 +120,13 @@ def test_sealed_variants_stay_separate():
     assert en_pack is None   # English pack must not match the Japanese one
     jp_pack, _ = m.match({"title": "Pokemon 151 JP Booster Pack", "lang": "JP", "kind": "sealed"})
     assert jp_pack and jp_pack["id"] == 23
+
+
+def test_duplicate_language_pages_and_accessories():
+    raw = [
+        {"title": "Pack ARs SRs", "price": 162, "url": "https://s/fr/product/pack/"},
+        {"title": "Pack ARs SRs", "price": 162, "url": "https://s/en/product/pack/"},
+        {"title": "Pokemon Pack Keychain 30th", "price": 300, "url": "https://s/en/product/key/"},
+    ]
+    ls = run.build_listings({"name": "S", "url": "", "currency": "THB"}, raw, ["pokemon", "pack"], Matcher(TCG), 33.0, ["keychain"])
+    assert [l["url"] for l in ls] == ["https://s/en/product/pack/"]

@@ -52,3 +52,7 @@ stores:
   #     sold_out: .sold-out       # optional: element present = out of stock
 
 keywords: [pokemon, pokémon, โปเกมอน, ptcg]
+
+# Products whose title contains any of these are skipped (accessories, not cards or sealed product).
+exclude: [keychain, sleeve, binder, playmat, toploader, top loader, card saver, deck box, deckbox,
+          figure, plush, sticker, mystery box, ซองใส, แฟ้ม]

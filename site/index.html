@@ -54,12 +54,16 @@
   .body{border-top:1px solid var(--line);padding:6px 14px 14px}
   .shops-h{font-size:12.5px;color:var(--muted);font-weight:600;padding:8px 0 6px}
   .shop{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:14px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:10px;margin-bottom:6px}
+  a.shop{color:inherit;text-decoration:none;cursor:pointer;transition:border-color .15s,box-shadow .15s}
+  a.shop:hover{border-color:var(--accent);box-shadow:0 2px 10px rgba(0,0,0,.08);text-decoration:none}
+  a.shop:hover .buy{background:var(--accent);color:var(--bg)}
+  a.shop:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   .shop.top{border-color:var(--good);background:var(--good-bg)}
   .shop.oos{opacity:.55}
   .ltitle{font-size:12.5px;color:var(--muted);margin-top:2px;overflow-wrap:anywhere}
   .cheap{font-size:11.5px;font-weight:700;color:var(--good);margin-left:4px}
   .sprice{text-align:right;white-space:nowrap}.sprice b{font-size:17px;font-variant-numeric:tabular-nums}
-  .buy{font-size:14px;font-weight:600;border:1.5px solid var(--accent);border-radius:10px;padding:9px 12px;white-space:nowrap;min-height:40px;display:inline-flex;align-items:center}
+  .buy{font-size:14px;font-weight:600;color:var(--accent);border:1.5px solid var(--accent);border-radius:10px;padding:9px 12px;white-space:nowrap;min-height:40px;display:inline-flex;align-items:center}
   .buy:hover{background:var(--accent);color:var(--bg);text-decoration:none}
   .buy.off{border-color:var(--line);color:var(--muted)}
   @media (max-width:640px){.shop{grid-template-columns:minmax(0,1fr) auto}.buy{grid-column:1/-1;justify-content:center}}
@@ -226,12 +230,12 @@ function card(p, best, open) {
       <div class="shops-h">${storesN ? `Selling now · cheapest first` : `No store has this in stock right now`}</div>
       ${ls.map((l, i) => {
         const d = diffPct(l.price_thb, p);
-        return `<div class="shop${l.in_stock ? "" : " oos"}${i === 0 && l.in_stock ? " top" : ""}">
+        const cls = `shop${l.in_stock ? "" : " oos"}${i === 0 && l.in_stock ? " top" : ""}`;
+        return `${l.url ? `<a class="${cls} link" href="${esc(l.url)}" target="_blank" rel="noopener" title="Open ${esc(l.store)} in a new tab">` : `<div class="${cls}">`}
           <div class="sname"><b>${esc(l.store)}</b>${i === 0 && l.in_stock ? ` <span class="cheap">Cheapest</span>` : ""}<div class="ltitle">${esc(l.title)}</div></div>
           <div class="sprice"><b>${thb(l.price_thb)}</b>${l.currency !== "THB" ? `<div class="lbl">${esc(l.currency)} ${l.price}</div>` : ""}
             <div class="lbl">${l.in_stock ? "In stock" : "Sold out"}${d == null ? "" : ` · <span style="color:var(--${d <= 0 ? "good" : "bad"})">${d > 0 ? "+" : ""}${d.toFixed(0)}% vs TCGplayer</span>`}</div></div>
-          ${l.url ? `<a class="buy" href="${esc(l.url)}" target="_blank" rel="noopener">View in store</a>` : ""}
-        </div>`;
+          ${l.url ? `<span class="buy">View in store →</span></a>` : `</div>`}`;
       }).join("")}
       ${t ? `<div class="spark">${spark(p.key)}<span>TCGplayer market ${usd(t.market)}${t.printing ? " · " + esc(t.printing) : ""}${t.low ? " · low " + usd(t.low) : ""} · <a href="${esc(t.url)}" target="_blank" rel="noopener">View on TCGplayer</a></span></div>` : ""}
       ${approx ? `<div class="note">Thai-language listing: TCGplayer doesn't sell Thai cards, so this compares against the ${t && t.lang === "EN" ? "English" : "Japanese"} version of the same card.</div>` : ""}
