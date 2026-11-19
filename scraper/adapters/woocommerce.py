@@ -1,4 +1,6 @@
 """WooCommerce (WordPress) stores expose a public Store API."""
+import html
+
 from ..common import get
 
 API = "/wp-json/wc/store/v1/products"
@@ -29,7 +31,8 @@ def fetch(store, max_pages=60):
             tags = ", ".join(t.get("name", "") for t in p.get("tags", []))
             imgs = p.get("images") or []
             out.append({
-                "title": p.get("name", ""),
+                "currency": prices.get("currency_code"),
+                "title": html.unescape(p.get("name", "")),
                 "price": price,
                 "in_stock": bool(p.get("is_in_stock", True)),
                 "url": p.get("permalink"),

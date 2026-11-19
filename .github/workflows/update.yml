@@ -39,8 +39,15 @@ jobs:
         id: tcg
         uses: actions/cache/restore@v4
         with:
-          path: .cache
+          path: .cache/tcgplayer.json
           key: tcgplayer-${{ steps.day.outputs.date }}
+
+      - name: Reuse today's listings from slow shops (checked once a day)
+        id: daily
+        uses: actions/cache/restore@v4
+        with:
+          path: .cache/daily
+          key: daily-shops-${{ steps.day.outputs.date }}
 
       - name: Scrape shops (and TCGplayer once a day)
         run: |
@@ -54,8 +61,15 @@ jobs:
         if: steps.tcg.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
-          path: .cache
+          path: .cache/tcgplayer.json
           key: tcgplayer-${{ steps.day.outputs.date }}
+
+      - name: Keep today's slow-shop listings for the next runs
+        if: steps.daily.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .cache/daily
+          key: daily-shops-${{ steps.day.outputs.date }}
 
       # Saving to the repo keeps the price history. Done once a day (on the TCGplayer refresh)
       # so the repo doesn't fill up with 96 commits a day; the live site still updates every run.
@@ -73,3 +87,7 @@ jobs:
           path: site
       - uses: actions/deploy-pages@v4
         id: deployment
+        continue-on-error: true
+      - name: Retry publishing once if GitHub had a hiccup
+        if: steps.deployment.outcome == 'failure'
+        uses: actions/deploy-pages@v4

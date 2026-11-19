@@ -8,7 +8,7 @@ import json
 import re
 import sys
 import traceback
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import yaml
@@ -22,6 +22,7 @@ ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "site" / "data"
 CACHE = ROOT / ".cache"
 FALLBACK_USD_THB = 33.0
+BKK = timezone(timedelta(hours=7))
 
 
 def usd_thb():
@@ -63,7 +64,7 @@ def build_listings(store, raw, keywords, matcher, rate, exclude=()):
         seen[dup] = True
         hint = r.get("hint") or ""
         blob = f"{r['title']} {r.get('product_type','')} {r.get('tags','')} {r.get('vendor','')} {r.get('url','')} {hint}".lower()
-        if any(x in r["title"].lower() for x in exclude):
+        if any(x in f"{r['title']} {r.get('product_type', '')}".lower() for x in exclude):
             continue
         listing = {
             "store": store["name"],
@@ -82,11 +83,12 @@ def build_listings(store, raw, keywords, matcher, rate, exclude=()):
                                                          None if card_number(r["title"]) else listing["number"]]))
         listing["_tcg_id_hint"] = r.get("tcg_id_hint")
         listing["price_thb"] = round(price * rate, 2) if listing["currency"] == "USD" else price
+        listing["currency"] = listing["currency"].upper()
         item, conf = matcher.match(listing)
         listing["tcg_id"] = item["id"] if item else None
         listing["match"] = conf
         listing.pop("_match_title"); listing.pop("_tcg_id_hint")
-        if any(k in blob for k in keywords) or conf in ("high", "manual"):
+        if not keywords or any(k in blob for k in keywords) or conf in ("high", "manual"):
             out.append(listing)
     return out
 
@@ -158,10 +160,27 @@ def main():
     rate = usd_thb()
     matcher = Matcher(tcg_items, overrides)
     all_listings, status = [], []
+    today = datetime.now(timezone.utc).astimezone(BKK).date().isoformat()
     for store in cfg["stores"]:
         try:
+            daily_file = CACHE / "daily" / f"{re.sub(r'[^a-z0-9]+', '-', store['name'].lower())}.json"
+            if store.get("daily") and daily_file.exists():
+                saved = json.loads(daily_file.read_text())
+                if saved.get("date") == today:
+                    # Slow shop: scraped once a day; reuse today's listings in between.
+                    ls = saved["listings"]
+                    all_listings += ls
+                    status.append({"name": store["name"], "url": store["url"], "platform": "daily", "ok": True,
+                                   "listings": len(ls), "matched": sum(1 for l in ls if l["tcg_id"])})
+                    print(f"  {store['name']}: {len(ls)} listings reused (checked once a day)", flush=True)
+                    continue
             raw, platform = fetch_store(store)
-            ls = build_listings(store, raw, keywords, matcher, rate, exclude)
+            kw = [k.lower() for k in store["keywords"]] if "keywords" in store else keywords
+            ex = exclude + [k.lower() for k in store.get("exclude", [])]
+            ls = build_listings(store, raw, kw, matcher, rate, ex)
+            if store.get("daily"):
+                daily_file.parent.mkdir(parents=True, exist_ok=True)
+                daily_file.write_text(json.dumps({"date": today, "listings": ls}, ensure_ascii=False))
             all_listings += ls
             status.append({"name": store["name"], "url": store["url"], "platform": platform, "ok": True,
                            "listings": len(ls), "matched": sum(1 for l in ls if l["tcg_id"])})

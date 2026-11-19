@@ -43,15 +43,18 @@ stores:
 
   - name: Thai PKMN
     url: https://thaipkmn.shop
-    platform: auto
-    currency: THB
+    platform: woocommerce
+    currency: USD          # prices on this shop are in US dollars
     city: Thailand
+    keywords: []           # a Pokémon shop whose titles are just card names, so keep everything...
+    exclude: [street fighter, sf zero, naruto, one piece, dragon ball]   # ...except its other games
 
   - name: Big Bear Cards
     url: https://bigbearcards.com
     platform: shopify
     currency: THB
     city: Bangkok
+    daily: true            # mostly Magic cards: reading the whole catalogue takes ~7 min, so once a day
 
   # SASOM is a marketplace (lowest price from its sellers). Its robots.txt doesn't allow following
   # page numbers, so only the products shown on the first page of each list are included.
