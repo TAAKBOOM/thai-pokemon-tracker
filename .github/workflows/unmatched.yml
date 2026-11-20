@@ -1,0 +1,24 @@
+name: Report unmatched listings (setup helper)
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - name: Scrape (fresh data + TCGplayer catalogue)
+        run: python -m scraper.run
+      - run: python tools/unmatched.py
+      - name: Save results to the probe-data branch
+        run: |
+          cp site/data/data.json probe-out/
+          cp .cache/tcgplayer.json probe-out/
+          cd probe-out && git init -q -b probe-data && git add -A
+          git -c user.name=probe -c user.email=probe@users.noreply.github.com commit -qm "unmatched $(date -u +%FT%T)"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" probe-data
