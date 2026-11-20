@@ -23,12 +23,13 @@ stores:
     currency: THB
     city: Phuket
     pages:
-      - https://www.kira-cards.com/en/pokemon
-      - https://www.kira-cards.com/en/pokemon/english
-      - https://www.kira-cards.com/en/pokemon/japanese
+      # type-specific pages first: a product keeps the type of the first page it's found on
       - https://www.kira-cards.com/en/pokemon/booster-boxes
       - https://www.kira-cards.com/en/pokemon/booster-packs
       - https://www.kira-cards.com/en/pokemon/elite-trainer-boxes
+      - https://www.kira-cards.com/en/pokemon
+      - https://www.kira-cards.com/en/pokemon/english
+      - https://www.kira-cards.com/en/pokemon/japanese
 
   - name: Yannick The Gathering
     url: https://yannickthegathering.com

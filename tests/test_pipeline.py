@@ -165,3 +165,21 @@ def test_nextrsc_shop():
 def test_language_words():
     assert language("Premium TCG retailer in Phuket, Thailand. English edition.") == "EN"
     assert language("image.jpg booster pack") is None
+
+
+def test_jsonld_product_address_sets_type():
+    from scraper.adapters import jsonld
+    def item(name, slug):
+        return ('{"@type":"Product","name":"%s","description":"%s - authentic, factory-sealed product available at Kira Cards, '
+                'premium TCG retailer in Phuket, Thailand.","offers":{"price":"100","url":"https://k/en/product/%s",'
+                '"availability":"https://schema.org/InStock"}}' % (name, name, slug))
+    page = '<script type="application/ld+json">[%s]</script>' % ",".join([
+        item("Delta Reign", "pokemon-me06-delta-reign-half-booster-box"),
+        item("MEGA Dream ex", "pokemon-m2a-mega-dream-booster"),
+        item("Bellibolt ex", "pokemon-bellibolt-ex-paldea-evolved-237"),
+        item("Charmander", "pokemon-charmander-svp-044-pokemon-center")])
+    got = {r["url"].rsplit("/", 1)[-1]: (r["kind"], r["match_title"]) for r in jsonld.parse(page)}
+    assert got["pokemon-me06-delta-reign-half-booster-box"] == ("sealed", "Delta Reign booster box")
+    assert got["pokemon-m2a-mega-dream-booster"] == ("sealed", "MEGA Dream ex booster pack")
+    assert got["pokemon-bellibolt-ex-paldea-evolved-237"][0] == "single"
+    assert got["pokemon-charmander-svp-044-pokemon-center"][0] == "single"

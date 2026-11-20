@@ -36,6 +36,12 @@
   .tabs button{font:inherit;font-size:16px;font-weight:600;background:none;border:0;border-bottom:3px solid transparent;margin-bottom:-1.5px;padding:10px 14px;color:var(--muted);cursor:pointer;min-height:44px}
   .tabs button.on{color:var(--ink);border-bottom-color:var(--accent)}
   .controls.filters{position:static;padding-top:12px}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin:-2px 0 10px}
+  .chips[hidden]{display:none}
+  .chips button{font:inherit;font-size:14px;background:var(--card);color:var(--ink);border:1.5px solid var(--line);border-radius:99px;padding:7px 13px;cursor:pointer;min-height:38px}
+  .chips button span{color:var(--muted);font-size:12.5px;margin-left:3px}
+  .chips button.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+  .chips button.on span{color:inherit;opacity:.7}
   .count{color:var(--muted);font-size:13.5px;margin:4px 0 12px}
   .p{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);margin-bottom:12px;overflow:hidden}
   .head{display:grid;grid-template-columns:64px 1fr auto;gap:14px;padding:14px;align-items:center}
@@ -119,6 +125,7 @@
     </select>
     <label class="chk"><input type="checkbox" id="stock" checked> In stock only</label>
   </div>
+  <div class="chips" id="stype" hidden></div>
   <div class="count" id="count"></div>
   <div id="list"></div>
 </main>
@@ -132,7 +139,7 @@ const usd = n => n == null ? "–" : "$" + n.toLocaleString("en-US", {minimumFra
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const fold = s => String(s || "").toLowerCase().normalize("NFKD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9ก-๙/]+/g, " ");
 
-let DATA, HIST = {}, kindF = "all", viewF = "all";
+let DATA, HIST = {}, kindF = "all", viewF = "all", stypeF = "all";
 
 async function load() {
   if (DEMO_DATA) { DATA = DEMO_DATA; HIST = DEMO_DATA.history || {}; }
@@ -143,6 +150,7 @@ async function load() {
   if (DATA.demo) { $("#demo").hidden = false; $("#demo").textContent = DATA.demo; }
   for (const p of DATA.products) {
     p._text = fold([p.name, p.set, p.number, p.tcg && p.tcg.name, ...p.listings.map(l => l.title)].join(" "));
+    if (p.kind === "sealed") p._stype = sealedType(p);
   }
   const q = new URLSearchParams(location.search).get("q");
   if (q) $("#q").value = q;
@@ -159,6 +167,38 @@ function badge(pct) {
   const cls = pct <= 0 ? "below" : "above";
   const word = pct <= 0 ? "below" : "above";
   return `<span class="badge ${cls}">${Math.abs(pct).toFixed(0)}% ${word} TCGplayer</span>`;
+}
+
+// Sealed product types, checked in this order (an "Elite Trainer Box" is an ETB, not a booster box).
+const STYPES = [
+  ["pack", "Booster Packs", /collection booster pack|sleeved booster pack/],
+  ["etb", "Elite Trainer Boxes", /elite trainer|\betb\b/],
+  ["bundle", "Booster Bundles", /booster bundle|\bbundle\b/],
+  ["tin", "Tins", /\btins?\b|ทิน/],
+  ["deck", "Decks", /\bdecks?\b|starter set|trainer kit|battle academy|เด็ค|สตาร์ทเตอร์/],
+  ["collection", "Collections & special boxes", /collection|premium|special (box|set)|gift box|blister|\b(ex|v|vmax|vstar|gx) box\b|poster box|pin box|figure|binder|ultra.premium|คอลเลกชัน|พรีเมียม/],
+  ["box", "Booster Boxes", /booster box|display|half box|\bbox\b|\bbooster case\b|boîte|บ็อกซ์|กล่อง|ยกกล่อง/],
+  ["pack", "Booster Packs", /\bpacks?\b|sleeved booster|\bbooster\b|ซอง/],
+];
+function sealedType(p) {
+  const text = ((p.tcg && p.tcg.name) || p.name || p.listings[0].title).toLowerCase();
+  const hit = STYPES.find(([, , re]) => re.test(text))
+    || STYPES.find(([, , re]) => p.listings.some(l => re.test(l.title.toLowerCase())));
+  return hit ? hit[0] : "other";
+}
+const STYPE_NAME = Object.fromEntries([...STYPES.map(([k, n]) => [k, n]), ["other", "Other sealed"]]);
+const STYPE_ONE = {etb: "Elite Trainer Box", bundle: "Booster Bundle", tin: "Tin", deck: "Deck", collection: "Collection",
+  box: "Booster Box", pack: "Booster Pack", other: "Sealed"};
+
+function renderChips(baseRows) {
+  const el = $("#stype");
+  el.hidden = kindF !== "sealed";
+  if (el.hidden) return;
+  const counts = {};
+  for (const p of baseRows) counts[p._stype] = (counts[p._stype] || 0) + 1;
+  const order = ["box", "pack", "etb", "bundle", "tin", "collection", "deck", "other"].filter(k => counts[k] || k === stypeF);
+  el.innerHTML = [`<button data-s="all" class="${stypeF === "all" ? "on" : ""}">All sealed <span>${baseRows.length}</span></button>`,
+    ...order.map(k => `<button data-s="${k}" class="${stypeF === k ? "on" : ""}">${STYPE_NAME[k]} <span>${counts[k] || 0}</span></button>`)].join("");
 }
 
 // Which language a listing is: what the shop says, else the TCGplayer product it matched.
@@ -190,6 +230,8 @@ function render() {
     words.every(w => p._text.includes(w)) &&
     p._ls.length &&
     (!deals || (dealPct(p) ?? 0) < 0));
+  renderChips(rows);
+  if (kindF === "sealed" && stypeF !== "all") rows = rows.filter(p => p._stype === stypeF);
   const price = p => deals ? dealPrice(p) : Math.min(...p._ls.filter(l => l.in_stock).map(l => l.price_thb), ...(p._ls.some(l => l.in_stock) ? [] : p._ls.map(l => l.price_thb)));
   if (deals) rows.sort((a, b) => dealPct(a) - dealPct(b));
   else rows.sort({
@@ -197,8 +239,9 @@ function render() {
     low: (a, b) => price(a) - price(b),
     high: (a, b) => price(b) - price(a),
   }[$("#sort").value]);
-  const n = rows.length.toLocaleString(), plural = rows.length === 1 ? "" : "s";
-  const what = {all: "product", single: "single", sealed: "sealed product"}[kindF];
+  const what = kindF === "sealed" && stypeF !== "all" ? STYPE_ONE[stypeF].toLowerCase().replace("sealed", "sealed product")
+    : {all: "product", single: "single", sealed: "sealed product"}[kindF];
+  const n = rows.length.toLocaleString(), plural = rows.length === 1 ? "" : (/box$/.test(what) ? "es" : "s");
   const langName = {all: "", EN: "English ", JP: "Japanese ", TH: "Thai "}[$("#lang").value];
   $("#count").textContent = (deals ? `${n} ${langName}${what}${plural} cheaper in Thailand than on TCGplayer, biggest saving first`
     : `${n} ${langName}${what}${plural}`) + (words.length ? ` matching “${$("#q").value.trim()}”` : "");
@@ -213,7 +256,7 @@ function card(p, best, open) {
   const storesN = new Set(ls.map(l => l.store)).size;
   const approx = ls.some(l => l.match === "approx");
   const img = p.image ? `<img class="thumb" loading="lazy" src="${esc(p.image)}" alt="">` : `<div class="thumb">${p.kind === "sealed" ? "Sealed" : "Card"}</div>`;
-  const tags = [p.kind === "sealed" ? "Sealed" : "Single", t && t.rarity, t && ({EN: "English", JP: "Japanese"}[t.lang])].filter(Boolean);
+  const tags = [p.kind === "sealed" ? STYPE_ONE[p._stype] : "Single", t && t.rarity, t && ({EN: "English", JP: "Japanese"}[t.lang])].filter(Boolean);
   return `<div class="p${open ? " open" : ""}">
     <div class="head">
       ${img}
@@ -268,7 +311,12 @@ $("#view").addEventListener("click", e => {
 });
 $("#kind").addEventListener("click", e => {
   const b = e.target.closest("button"); if (!b) return;
-  kindF = b.dataset.k; document.querySelectorAll("#kind button").forEach(x => x.classList.toggle("on", x === b)); render();
+  kindF = b.dataset.k; if (kindF !== "sealed") stypeF = "all";
+  document.querySelectorAll("#kind button").forEach(x => x.classList.toggle("on", x === b)); render();
+});
+$("#stype").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  stypeF = b.dataset.s; render();
 });
 load().catch(e => { $("#list").innerHTML = `<div class="empty">Couldn't load price data (${esc(e.message)}). Run the scraper first.</div>`; });
 </script>

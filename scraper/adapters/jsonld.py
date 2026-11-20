@@ -12,7 +12,13 @@ from ..common import get
 
 LD_RE = re.compile(r'<script[^>]*application/ld\+json[^>]*>(.*?)</script>', re.S)
 KIND_WORDS = ["booster box", "booster bundle", "elite trainer box", "booster pack", "booster", "starter deck",
-              "deck", "collection", "tin", "blister", "premium", "half box", "display"]
+              "deck", "collection", "tin", "blister", "half box", "display"]
+# Product web addresses are the most reliable clue: ".../pokemon-me06-delta-reign-half-booster-box"
+SLUG_KINDS = [("elite-trainer-box", "elite trainer box"), ("booster-bundle", "booster bundle"), ("booster-box", "booster box"),
+              ("booster-pack", "booster pack"), ("blister", "blister"), ("collection", "collection"), ("tin", "tin"),
+              ("deck", "deck"), ("display", "booster box"), ("box", "booster box"), ("booster", "booster pack"),
+              ("pack", "booster pack")]
+SINGLE_SLUG = re.compile(r"-\d{1,3}(-[a-z-]+)?$|\b(svp|swsh|sm|xy)-?\d{2,3}\b|\bpsa-?\d|graded")
 
 
 def _products(o):
@@ -27,7 +33,12 @@ def _products(o):
                 yield from _products(o[k])
 
 
-def parse(page_html):
+PAGE_KINDS = [("elite-trainer", "elite trainer box"), ("booster-box", "booster box"), ("booster-pack", "booster pack"),
+              ("booster-bundle", "booster bundle"), ("tins", "tin")]
+
+
+def parse(page_html, page_url=""):
+    page_kind = next((k for slug, k in PAGE_KINDS if slug in page_url), "")
     out = []
     for m in LD_RE.finditer(page_html):
         try:
@@ -49,19 +60,26 @@ def parse(page_html):
                 img = img[0] if img else None
             # Some shops name a booster box just "Vivid Voltage"; the description says what it is.
             low = name.lower()
-            kind_word = "" if any(w in low for w in KIND_WORDS) else next((w for w in KIND_WORDS if w in desc.lower()), "")
+            link = offers.get("url") or p.get("url") or ""
+            slug = link.rstrip("/").rsplit("/", 1)[-1].lower()
+            slug_kind = next((k for part, k in SLUG_KINDS if re.search(rf"(^|-){part}(-|$)", slug)), "")
+            is_single = not slug_kind and bool(SINGLE_SLUG.search(slug))
+            # Clue order: product address, then the shop's category page, then the description.
+            kind_word = "" if any(w in low for w in KIND_WORDS) or is_single else (
+                slug_kind or page_kind or next((w for w in KIND_WORDS if w in desc.lower()), ""))
             out.append({
                 "title": name + (" (pre-order)" if "PreOrder" in avail else ""),
                 "match_title": f"{name} {kind_word}".strip(),
                 "price": price,
                 "currency": offers.get("priceCurrency"),
                 "in_stock": "InStock" in avail or "PreOrder" in avail,
-                "url": offers.get("url") or p.get("url"),
+                "url": link or None,
                 "image": img if isinstance(img, str) else None,
                 "product_type": "",
                 "tags": ((p.get("brand") or {}).get("name", "") if isinstance(p.get("brand"), dict) else str(p.get("brand") or "")),
                 "vendor": "",
-                "hint": f"{desc[:300]} {p.get('sku', '')} {offers.get('url') or p.get('url') or ''}",
+                "hint": f"{desc[:300]} {p.get('sku', '')} {link}",
+                "kind": "single" if is_single else ("sealed" if kind_word else None),
             })
     return out
 
@@ -72,7 +90,7 @@ def fetch(store):
         r = get(url, polite_delay=2)
         if not r.ok:
             continue
-        for item in parse(r.text):
+        for item in parse(r.text, url):
             if item["url"] and item["url"] not in seen:
                 seen.add(item["url"])
                 out.append(item)
