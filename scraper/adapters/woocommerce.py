@@ -1,9 +1,13 @@
 """WooCommerce (WordPress) stores expose a public Store API."""
 import html
+import re
 
 from ..common import get
 
 API = "/wp-json/wc/store/v1/products"
+SKU_RE = re.compile(r"^([A-Za-z0-9]+)-(\d{1,3})([a-z]?)-([A-Z]{2})$")   # MA3-086r-TH: set, number, variant, language
+LANGS = {"TH": "TH", "JP": "JP", "EN": "EN", "JA": "JP"}
+LANG_WORDS = {"thai": "TH", "japan": "JP", "english": "EN", "anglais": "EN", "japonais": "JP"}
 
 
 def detect(base):
@@ -30,7 +34,16 @@ def fetch(store, max_pages=60):
             cats = ", ".join(c.get("name", "") for c in p.get("categories", []))
             tags = ", ".join(t.get("name", "") for t in p.get("tags", []))
             imgs = p.get("images") or []
+            sku = p.get("sku") or ""
+            attrs = {a.get("name", "").lower(): ", ".join(t.get("name", "") for t in a.get("terms", []))
+                     for a in p.get("attributes") or []}
+            m = SKU_RE.match(sku)
+            serie = attrs.get("serie") or attrs.get("série") or ""
+            lang_attr = (attrs.get("language") or attrs.get("langue") or "").lower()
             out.append({
+                "num_hint": m.group(2) if m else None,
+                "set_hint": serie.split(" - ", 1)[-1] if serie else None,
+                "lang": LANGS.get(m.group(4)) if m else next((v for k, v in LANG_WORDS.items() if k in lang_attr), None),
                 "currency": prices.get("currency_code"),
                 "title": html.unescape(p.get("name", "")),
                 "price": price,

@@ -67,9 +67,26 @@ def parse(page_html, page_url=""):
             # Clue order: product address, then the shop's category page, then the description.
             kind_word = "" if any(w in low for w in KIND_WORDS) or is_single else (
                 slug_kind or page_kind or next((w for w in KIND_WORDS if w in desc.lower()), ""))
+            num_hint = set_hint = None
+            match_title = None
+            if is_single:
+                words = [w for w in slug.split("-") if w not in ("pokemon", "en", "jp", "th")]
+                name_words = set(re.sub(r"[^a-z0-9]+", " ", name.lower()).split())
+                full_number = None
+                if len(words) >= 2 and words[-1].isdigit() and words[-2].isdigit():
+                    total, n = words.pop(), words.pop()        # "...-paf-215-091": card 215 of 091
+                    full_number = f"{n}/{total}"
+                elif words and words[-1].isdigit():
+                    num_hint = words.pop()                      # "...-paldea-evolved-237": card 237
+                rest = [w for w in words if w not in name_words and w not in ("single", "graded")]
+                set_hint = " ".join(rest) or None
+                if full_number:
+                    match_title = f"{name} {full_number} {set_hint or ''}".strip()
             out.append({
+                "num_hint": num_hint,
+                "set_hint": set_hint,
                 "title": name + (" (pre-order)" if "PreOrder" in avail else ""),
-                "match_title": f"{name} {kind_word}".strip(),
+                "match_title": match_title or f"{name} {kind_word}".strip(),
                 "price": price,
                 "currency": offers.get("priceCurrency"),
                 "in_stock": "InStock" in avail or "PreOrder" in avail,

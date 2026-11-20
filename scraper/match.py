@@ -126,6 +126,8 @@ class Matcher:
                     return item, "manual"
 
         lang = listing.get("lang")
+        if listing.get("_num_hint") and listing["kind"] == "single":
+            return self._match_by_set_number(listing, title, lang)
         num = _num_key(card_number(title))
         best, best_score = None, 0.0
 
@@ -158,6 +160,32 @@ class Matcher:
         if best and best_score >= 1.05:
             return best, "medium" if lang == best["lang"] else "approx"
         return None, None
+
+    def _match_by_set_number(self, listing, title, lang):
+        """Shop gave set name + card number (no set total): e.g. Thai "MEGA Dream ex" #086 -> Japanese M2a 086/193.
+
+        Accepted only if the card at that number has the same name, so sets numbered differently don't match.
+        """
+        num = listing["_num_hint"].lstrip("0")
+        set_words = {w for w in tokens(listing.get("_set_hint") or "") if len(w) > 2} - STOP
+        best, best_key = None, None
+        for i in self._token_pool(title):
+            if (i.get("number") or "").split("/")[0].lstrip("0") != num:
+                continue
+            if name_score(title, i["name"]) < 1:
+                continue
+            item_set = set(tokens(i.get("set") or ""))
+            if set_words and len(set_words & item_set) / len(set_words) < 0.6:
+                continue
+            if lang and lang != i["lang"] and not (lang == "TH" and i["lang"] == "JP"):
+                continue
+            # prefer the same language, then the plain printing over "(Dusk Ball Pattern)"-style variants
+            key = (lang != i["lang"], "(" in i["name"], len(i["name"]))
+            if best_key is None or key < best_key:
+                best, best_key = i, key
+        if not best:
+            return None, None
+        return best, "high" if lang == best["lang"] else "approx"
 
     def _token_pool(self, title):
         seen, pool = set(), []

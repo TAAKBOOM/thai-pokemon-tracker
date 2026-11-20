@@ -261,7 +261,7 @@ function card(p, best, open) {
     <div class="head">
       ${img}
       <div><div class="name">${esc(p.name)}</div>
-        <div class="meta">${esc([p.set, p.number].filter(Boolean).join(" · ") || (p.listings.some(l => l.lang === "TH") ? "Thai edition · TCGplayer doesn't sell Thai products" : "No TCGplayer price for this product"))}</div>
+        <div class="meta">${esc([p.set, p.number].filter(Boolean).join(" · ") || (p.listings.some(l => l.graded) ? "Graded card · not compared with TCGplayer's ungraded price" : p.listings.some(l => l.lang === "TH") ? "Thai edition · TCGplayer doesn't sell Thai products" : "No TCGplayer price for this product"))}</div>
         <div class="tags">${tags.map(x => `<span class="tag">${esc(x)}</span>`).join("")}<span class="tag">${storesN} store${storesN === 1 ? "" : "s"}</span></div>
       </div>
       <div class="prices">

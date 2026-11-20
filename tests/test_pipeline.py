@@ -183,3 +183,19 @@ def test_jsonld_product_address_sets_type():
     assert got["pokemon-m2a-mega-dream-booster"] == ("sealed", "MEGA Dream ex booster pack")
     assert got["pokemon-bellibolt-ex-paldea-evolved-237"][0] == "single"
     assert got["pokemon-charmander-svp-044-pokemon-center"][0] == "single"
+
+
+def test_thai_card_by_set_and_number():
+    jp = [summarise({"id": 70, "name": "Lunatone", "set": "M2a: High Class Pack: MEGA Dream ex", "setAbbr": "M2a", "number": "086/193",
+                     "rarity": "C", "lang": "JP", "kind": "single", "url": "", "img": None, "variants": {"Normal": {"market": 0.2, "low": 0.1, "mid": 0.2}}}),
+          summarise({"id": 71, "name": "Lunatone (Dusk Ball Pattern)", "set": "M2a: High Class Pack: MEGA Dream ex", "setAbbr": "M2a",
+                     "number": "086/193", "rarity": "C", "lang": "JP", "kind": "single", "url": "", "img": None,
+                     "variants": {"Normal": {"market": 2.0, "low": 1.0, "mid": 2.0}}}),
+          summarise({"id": 72, "name": "Mew", "set": "M6a: MEGA Expansion 30th Celebration", "setAbbr": "M6a", "number": "056/103",
+                     "rarity": "C", "lang": "JP", "kind": "single", "url": "", "img": None, "variants": {"Normal": {"market": 1.0, "low": 1.0, "mid": 1.0}}})]
+    m = Matcher(jp)
+    item, conf = m.match({"title": "Lunatone", "lang": "TH", "kind": "single", "_num_hint": "086", "_set_hint": "MEGA Dream ex"})
+    assert item["id"] == 70 and conf == "approx"
+    # Thai 30th Celebration #056 is Zekrom, Japanese #056 is Mew: different numbering, so no match
+    item, _ = m.match({"title": "Zekrom", "lang": "TH", "kind": "single", "_num_hint": "056", "_set_hint": "30th Celebration"})
+    assert item is None

@@ -88,12 +88,18 @@ def build_listings(store, raw, keywords, matcher, rate, exclude=()):
         listing["_match_title"] = " ".join(filter(None, [r.get("match_title") or r["title"],
                                                          None if card_number(r["title"]) else listing["number"]]))
         listing["_tcg_id_hint"] = r.get("tcg_id_hint")
+        listing["_num_hint"] = r.get("num_hint")
+        listing["_set_hint"] = r.get("set_hint")
         listing["price_thb"] = round(price * rate, 2) if listing["currency"] == "USD" else price
         listing["currency"] = listing["currency"].upper()
-        item, conf = matcher.match(listing)
+        # Graded cards (PSA 10...) sell for far more than the ungraded TCGplayer price: don't compare them.
+        graded = re.search(r"\b(psa|bgs|cgc|sgc)\s?-?\d|\bgraded\b", f"{r['title']} {r.get('url') or ''}", re.I)
+        item, conf = (None, None) if graded else matcher.match(listing)
+        listing["graded"] = bool(graded)
         listing["tcg_id"] = item["id"] if item else None
         listing["match"] = conf
-        listing.pop("_match_title"); listing.pop("_tcg_id_hint")
+        for k in ("_match_title", "_tcg_id_hint", "_num_hint", "_set_hint"):
+            listing.pop(k, None)
         if not keywords or any(k in blob for k in keywords) or conf in ("high", "manual"):
             out.append(listing)
     return out
