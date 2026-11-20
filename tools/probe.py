@@ -12,6 +12,10 @@ sys_extra = {
     "www.kira-cards.com": ["https://www.kira-cards.com/en/pokemon", "https://www.kira-cards.com/en/shop"],
     "yannickthegathering.com": ["https://yannickthegathering.com/pokemon", "https://yannickthegathering.com/shop"],
     "tcgnexus.com": ["https://tcgnexus.com/llms.txt"],
+    "thaipkmn.shop": ["https://thaipkmn.shop/wp-json/wc/store/v1/products?per_page=3&search=Lunatone",
+                      "https://thaipkmn.shop/wp-json/wc/store/v1/products?per_page=3&search=Zekrom",
+                      "https://thaipkmn.shop/en/product/lunatone/", "https://thaipkmn.shop/wp-json/wc/store/v1/products/categories?per_page=100",
+                      "https://thaipkmn.shop/wp-json/wc/store/v1/products/attributes"],
     "sasom.co.th": ["https://sasom.co.th/en/shop/trading-card-box-and-pack", "https://sasom.co.th/terms", "https://sasom.co.th/th/terms-and-conditions"],
 }
 
