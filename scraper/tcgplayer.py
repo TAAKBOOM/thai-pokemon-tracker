@@ -18,7 +18,7 @@ def _ext(product, key):
     return None
 
 
-def fetch(max_age_years=6):
+def fetch(max_age_years=40):
     cutoff = datetime.now(timezone.utc) - timedelta(days=365 * max_age_years)
     out = []
     for cat, lang in CATEGORIES.items():

@@ -15,17 +15,51 @@ def tokens(text, keep_brackets=True):
 
 # Words that say nothing about which product it is.
 NOISE = {"jp", "jpn", "en", "eng", "th", "sealed", "new", "version", "ver", "official", "authentic",
-         "japan", "lang", "language", "nm", "near", "mint", "box", "s"}
+         "japan", "lang", "language", "nm", "near", "mint", "s"}
+
+
+FOLD = {"tins": "tin", "boosters": "booster", "packs": "pack", "boxes": "box", "decks": "deck", "festival": "fest",
+        "collections": "collection", "blisters": "blister", "bundles": "bundle", "gyrados": "gyarados",
+        "etb": "elite", "pokemon": "", "pokémon": "", "tcg": "", "random": "", "lgs": "", "retail": "", "art": "", "card": "", "cards": ""}
+SERIES = {"mega", "evolution", "scarlet", "violet", "sword", "shield", "sun", "moon"}
+SET_CODE = re.compile(r"^(?=.*\d)[a-z]{1,4}\d{1,3}[a-z]?$")   # m6a, sv8a, me05, swsh12
+
+
+def _sealed_words(text):
+    words = set()
+    for w in tokens(text):
+        w = FOLD.get(w, w)
+        if w and w not in STOP and w not in NOISE:
+            words.add(w)
+    if "elite" in words:
+        words |= {"trainer"}
+    return words
 
 
 def sealed_score(listing_title, tcg_name):
-    """Two-way word overlap (F1), so "Pikachu" doesn't match every tin with Pikachu in it."""
-    a = set(tokens(listing_title)) - STOP - NOISE
-    b = set(tokens(tcg_name)) - STOP - NOISE
+    """How well a shop's sealed product name fits a TCGplayer one.
+
+    Two-way overlap (F1), so a one-word "Pikachu" doesn't match every tin, plus credit when every
+    word the shop wrote appears in the TCGplayer name ("Mini Tins - Fuecoco" vs "Mini Tin [Fuecoco & Smoliv]").
+    """
+    a = {w for w in _sealed_words(listing_title) if not SET_CODE.match(w)}
+    b = _sealed_words(tcg_name)
     if not a or not b:
         return 0.0
+    best = _fit(a, b)
+    # "Mega Evolution Phantasmal Flames" is the Phantasmal Flames set: try without the series name
+    if (a & SERIES) and len(a - SERIES) >= 2 and not (b & SERIES):
+        best = max(best, _fit(a - SERIES, b))
+    return best
+
+
+def _fit(a, b):
     both = len(a & b)
-    return 2 * both / (len(a) + len(b))
+    f1 = 2 * both / (len(a) + len(b))
+    contained = both / len(a)
+    if contained == 1 and len(a) >= 3:
+        return max(f1, 0.8 + 0.2 * f1)
+    return f1
 
 
 def name_score(listing_title, tcg_name):

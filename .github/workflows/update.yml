@@ -37,7 +37,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: .cache/tcgplayer.json
-          key: tcgplayer-${{ steps.day.outputs.date }}
+          key: tcgplayer-all-sets-${{ steps.day.outputs.date }}
 
       - name: Reuse today's listings from slow shops (checked once a day)
         id: daily
@@ -59,7 +59,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: .cache/tcgplayer.json
-          key: tcgplayer-${{ steps.day.outputs.date }}
+          key: tcgplayer-all-sets-${{ steps.day.outputs.date }}
 
       - name: Keep today's slow-shop listings for the next runs
         if: steps.daily.outputs.cache-hit != 'true'

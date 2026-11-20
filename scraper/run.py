@@ -78,7 +78,8 @@ def build_listings(store, raw, keywords, matcher, rate, exclude=()):
             "in_stock": r.get("in_stock", True),
             "kind": r.get("kind") or ("single" if card_number(r["title"]) or NUMBER_RE.search(hint) or re.search(r"\bpsa\s?\d|\bbgs\b|\bcgc\b|graded", blob)
                                       else kind(r.get("match_title") or r["title"], r.get("product_type", ""), r.get("tags", ""))),
-            "lang": r.get("lang") or language(f"{r['title']} {hint}") or language(blob),
+            "lang": r.get("lang") or language(f"{r['title']} {hint}") or language(blob)
+                    or ("TH" if re.search(r"[ก-๙]", r["title"]) else None),
             "number": card_number(r["title"]) or (card_number(hint) if NUMBER_RE.search(hint) else None),
             "rarity": rarity(r["title"]),
             "price": price,

@@ -73,8 +73,12 @@ def rarity(title):
     return None
 
 
+URL_RE = re.compile(r"https?://\S+")
+
+
 def language(text):
-    t = (text or "").lower()
+    # In a link only the product's own name counts: "/en/" in a shop's address isn't the card's language.
+    t = URL_RE.sub(lambda m: " " + m.group(0).rstrip("/").rsplit("/", 1)[-1].replace("-", " ") + " ", (text or "").lower())
     for lang, pats in LANG_HINTS.items():
         if any(re.search(p, t) for p in pats):
             return lang
